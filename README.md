@@ -15,10 +15,10 @@ Consider how to incorporate IV without relying on it exclusively.
 Commodity volatility may exhibit seasonal patterns due to weather, supply and demand cycles, etc.
 Analyze historical volatility over comparable periods in previous years to determine whether meaningful seasonal patterns exist.
 Seasonality will likely vary significantly across commodities and should be evaluated separately for each asset.
-Think of how to incorporate volatility seasonality into the model
-Consider whether incorporating events like WASDE, EIA and FED reports directly into the forecasting model would improve its accuracy
-Alternatively, it may be more useful to leave event-specific adjustments to analysts and instead provide historical volatility data surrounding these events
-This would allow analysts to evaluate how volatility has historically responded to similar announcements and incorporate that information into their trading decisions
+Think of how to incorporate volatility seasonality into the model.
+Consider whether incorporating events like WASDE, EIA and FED reports directly into the forecasting model would improve its accuracy.
+Alternatively, it may be more useful to leave event-specific adjustments to analysts and instead provide historical volatility data surrounding these events.
+This would allow analysts to evaluate how volatility has historically responded to similar announcements and incorporate that information into their trading decisions.
 
 ### 3. Volatility Distributions
 Volatility is nonnegative and frequently exhibits a right-skewed distribution rather than a normal distribution.
@@ -28,8 +28,8 @@ Remember that fitting a historical distribution alone does not account for how v
 
 ### 4. Volatility Clustering and Mean Reversion
 Volatility observations are not independent. High-volatility periods tend to be followed by high-volatility periods, and similarly for low volatility.
-Volatility also frequently exhibits mean-reverting behavior
-Consider models such as GARCH or Hidden Markov Models to account for volatility clustering
+Volatility also frequently exhibits mean-reverting behavior.
+Consider models such as GARCH or Hidden Markov Models to account for volatility clustering.
 
 ### 5. Forecast Horizons
 Ideally forecast the volatility out for 10 to 20 trading days, recognize that the longer the forecast the more inaccurate.
