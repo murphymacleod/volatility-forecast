@@ -1,11 +1,11 @@
 # Volatility-Forecast
 
-##Project Objective
+## Project Objective
 The goal of this project is to develop a tool that forecasts future volatility for commodity ETFs to improve our risk assessment, options valuation, and trading decisions.
 Rather than predicting the exact path of volatility, the objective is to forecast a probability distribution of future realized volatility over a specified time horizon.
 This will allow us to estimate the range of likely volatility outcomes and compare our forecasts against market-implied volatility to identify potential trading opportunities.
 
-##1. Implied vs. Historical Volatility
+## 1. Implied vs. Historical Volatility
 Understand the differences between implied volatility (IV) and historical/realized volatility (RV).
 IV will likely be a useful input, but it is not necessarily an unbiased forecast of future realized volatility.
 Many of our commodity ETF options markets are thinly traded, so IV estimates may be distorted.
