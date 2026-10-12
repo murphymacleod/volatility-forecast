@@ -17,14 +17,11 @@ Analyze historical volatility over comparable periods in previous years to deter
 Seasonality will likely vary significantly across commodities and should be evaluated separately for each asset.
 Think of how to incorporate volatility seasonality into the model.
 Consider whether incorporating events like WASDE, EIA and FED reports directly into the forecasting model would improve its accuracy.
-Alternatively, it may be more useful to leave event-specific adjustments to analysts and instead provide historical volatility data surrounding these events.
-This would allow analysts to evaluate how volatility has historically responded to similar announcements and incorporate that information into their trading decisions.
+Alternatively, it may be more useful to leave event-specific volatility to analysts and instead provide historical volatility data surrounding these events.
 
 ### 3. Volatility Distributions
 Volatility is nonnegative and frequently exhibits a right-skewed distribution rather than a normal distribution.
 Taking the natural log of volatility values may produce a distribution closer to normal, but this must be tested for each asset.
-Consider whether alternative distributions better represent historical volatility, particularly during periods of extreme market movement.
-Remember that fitting a historical distribution alone does not account for how volatility changes over time.
 
 ### 4. Volatility Clustering and Mean Reversion
 Volatility observations are not independent. High-volatility periods tend to be followed by high-volatility periods, and similarly for low volatility.
@@ -36,10 +33,7 @@ Ideally forecast the volatility out for 10 to 20 trading days, recognize that th
 The forecast distribution should represent volatility over the entire future period, not volatility on the final day.
 Ensure that historical and implied volatility comparisons use consistent time horizons and annualization conventions.
 
-### Expected Output
-The final tool should ideally provide:
-Forecast distribution: Expected volatility, median volatility, and probability intervals for the selected forecast horizon.
-Historical comparison: Historical realized volatility for comparable periods, including seasonal benchmarks where appropriate.
-Implied volatility comparison: Current IV for a comparable horizon, allowing analysts to assess potential differences between market pricing and our forecast.
-Visualization: A clear display of the forecast distribution and relevant historical comparisons.
+### 6. Other Information to Consider
+Think about modelling out specific day volatility or a rolling volatility and what window.
+An alternative strategy may be forcasting out price paths and then taking the volatility of those price paths to get a distribution.
 
