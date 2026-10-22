@@ -37,3 +37,5 @@ Ensure that historical and implied volatility comparisons use consistent time ho
 Think about modelling out specific day volatility or a rolling volatility and what window.
 An alternative strategy may be forcasting out price paths and then taking the volatility of those price paths to get a distribution.
 
+
+
