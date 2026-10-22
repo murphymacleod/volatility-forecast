@@ -1,0 +1,16 @@
+
+"""
+Variables Names
+
+Sigma_Future = conditional var at time t
+Sigma_Past = lagged conditional var ie t-1
+Omega = baseline vol ie historical vol
+Alpha = weighting of epsilon
+Epsilon = squared residual/shock from previous period ie t-1
+Beta = weight of Sigma_Past
+
+GARCH
+
+Sigma_Future ~= Omega + Alpha(Epsilon) + Beta(Sigma_Past)
+
+"""
