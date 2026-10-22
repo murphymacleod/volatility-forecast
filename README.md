@@ -39,3 +39,7 @@ An alternative strategy may be forcasting out price paths and then taking the vo
 
 
 
+
+
+
+
