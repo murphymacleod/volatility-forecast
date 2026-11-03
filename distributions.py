@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.ticker import PercentFormatter
-from scipy.stats import norm
+from scipy.stats import norm, t as student_t
 
 DATA_PATH = Path(__file__).parent / "etf_data" / "USO_daily_prices.csv"
 PLOTS_DIR = Path(__file__).parent / "plots"
@@ -128,13 +128,87 @@ def plot_histograms_vs_normal():
     save(fig, "returns_vs_normal.png")
 
 
+def fit_models(series):
+    return {
+        "Normal": norm(*norm.fit(series)),
+        "Student's t": student_t(*student_t.fit(series)),
+    }
+
+
+def compare_models(series, models, tail=0.10):
+    rows = {"Actual": {"Excess kurtosis": series.kurt(), f"Days beyond ±{tail:.0%}": (series.abs() > tail).sum()}}
+
+    for name, model in models.items():
+        log_likelihood = model.logpdf(series).sum()
+        rows[name] = {
+            # A t distribution's kurtosis is infinite when its degrees of freedom are 4 or less
+            "Excess kurtosis": float(model.stats(moments="k")),
+            f"Days beyond ±{tail:.0%}": len(series) * (model.cdf(-tail) + model.sf(tail)),
+            "Log-likelihood": log_likelihood,
+            "AIC": 2 * len(model.args) - 2 * log_likelihood,
+        }
+
+    return pd.DataFrame(rows).T
+
+
+def plot_normal_vs_t(series, models, summary):
+    # Same layout as plot_histograms_vs_normal, with the log scale row showing the tails
+    fig, axes = plt.subplots(2, 2, figsize=(11, 7.5), sharex=True, sharey="row", layout="constrained")
+    fig.suptitle("USO simple returns: normal vs Student's t fit")
+    x = np.linspace(BINS[0], BINS[-1], 1000)
+    label, color = SERIES["Simple_Returns"]
+
+    for col, (name, model) in enumerate(models.items()):
+        for ax in axes[:, col]:
+            ax.hist(series, bins=BINS, density=True, color=color, edgecolor="#fcfcfb", linewidth=0.3, label=label)
+            ax.plot(x, model.pdf(x), color=INK, linewidth=1.5, label=f"{name} fit")
+
+        model_kurtosis = summary.loc[name, "Excess kurtosis"]
+        title = f"{name} (df = {model.args[0]:.2f})" if name == "Student's t" else name
+        axes[0, col].set_title(title, loc="left")
+        axes[0, col].text(
+            0.03, 0.95,
+            f"Excess kurtosis\nData: {series.kurt():.2f}\n"
+            f"Model: {'infinite' if np.isinf(model_kurtosis) else f'{model_kurtosis:.2f}'}\n"
+            f"AIC: {summary.loc[name, 'AIC']:,.0f}",
+            transform=axes[0, col].transAxes,
+            va="top",
+            color=INK,
+        )
+        axes[0, col].legend(loc="upper right", frameon=False)
+
+        axes[1, col].text(
+            0.03, 0.95,
+            f"Days beyond ±10%\nData: {summary.loc['Actual', 'Days beyond ±10%']:.0f}\n"
+            f"Model: {summary.loc[name, 'Days beyond ±10%']:.1f}",
+            transform=axes[1, col].transAxes,
+            va="top",
+            color=INK,
+        )
+        axes[1, col].set_yscale("log")
+        axes[1, col].set_ylim(0.03, 40)
+        axes[1, col].set_xlabel("Daily return")
+        axes[1, col].xaxis.set_major_formatter(PercentFormatter(xmax=1))
+
+    axes[0, 0].set_ylabel("Density")
+    axes[1, 0].set_ylabel("Density (log scale)")
+
+    save(fig, "normal_vs_t.png")
+
+
 if __name__ == "__main__":
     print(uso.head())
     print(returns.describe())
     print(returns.agg(["skew", "kurt"]))
 
+    simple_returns = returns["Simple_Returns"]
+    models = fit_models(simple_returns)
+    summary = compare_models(simple_returns, models)
+    print(summary)
+
     style_charts()
     plot_returns_over_time()
     plot_histograms()
     plot_histograms_vs_normal()
+    plot_normal_vs_t(simple_returns, models, summary)
     plt.show()
