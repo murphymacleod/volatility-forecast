@@ -358,7 +358,7 @@ The two models' forecasts as of Nov 4, annualized:
 |---|---|---|
 | Next 1 day | 64.8% | 59.0% |
 | Next 10 days | 62.1% | 57.0% |
-| Next 20 days | 59.4% | 55.0% |
+| Next 20 days | 59.4% | 55.1% |
 
 - **The t's df rose from 3.67 to 6.72 once clustering was modeled**, confirming that part of the fat tails came from vol clustering.
 - **GARCH improves on a constant-vol t.** On the same scale, AIC falls by about 396, from about 12,175 to 11,779. (These AICs aren't directly comparable with the earlier table, because the returns are scaled by 100.)
@@ -454,7 +454,7 @@ IV and GARCH won't match even over the same window:
 - **Day counts differ:** IV usually counts calendar time, while our vol numbers use 252 trading days.
 - **Thin markets distort it:** USO is our most liquid option, and it still has wide spreads on some contracts.
 
-**One snapshot, not a signal:** in Nov 4's chain, the near-the-money IV for the Dec 4 expiry (30 calendar days, about 21 trading days) was about 54.7%. That's the median across 50 contracts within 5% of the underlying price, with a positive bid. GARCH-t's in-sample 20-day forecast from the same date is 55.0%, and GARCH-normal's is 59.4%. Trailing 20-day vol was 49.1%, but that's a past window. It's a useful example of lining up the numbers, but one date proves nothing.
+**One snapshot, not a signal:** in Nov 4's chain, the near-the-money IV for the Dec 4 expiry (30 calendar days, about 21 trading days) was about 54.7%. That's the median across 50 contracts within 5% of the underlying price, with a positive bid. GARCH-t's in-sample 20-day forecast from the same date is 55.1%, and GARCH-normal's is 59.4%. Trailing 20-day vol was 49.1%, but that's a past window. It's a useful example of lining up the numbers, but one date proves nothing.
 
 ### The IV history problem
 

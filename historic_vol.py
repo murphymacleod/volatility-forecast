@@ -73,6 +73,15 @@ def plot_rolling_vol(column, filename):
     save(fig, filename)
 
 
+# Daily vol measure -> color and legend label, shared with the GARCH chart in garch_test.py
+MEASURE_COLORS = {"Close-to-close": "#2a78d6", "Garman-Klass + gap": "#eb6834", "20-day rolling": "#1baf7a"}
+MEASURE_LABELS = {
+    "Close-to-close": "Close-to-close, |log return| × √252",
+    "Garman-Klass + gap": "Garman-Klass + overnight gap",
+    "20-day rolling": "20-day rolling vol",
+}
+
+
 def close_to_close_vol(log_returns):
     # A single day's vol is just the size of its return, annualized
     return log_returns.abs() * np.sqrt(TRADING_DAYS)
@@ -87,23 +96,27 @@ def garman_klass_gap_vol(prices):
     return np.sqrt(daily_variance * TRADING_DAYS)
 
 
-def plot_recent_vol_measures(days=20):
+def recent_vol_measures(days=20):
     # Everything is calculated on the full history first, then cut down to the days shown
     log_returns = returns["Log_Returns"]
-    historic_vol = annualized_vol(log_returns)
-    measures = pd.DataFrame({
+    return pd.DataFrame({
         "Close-to-close": close_to_close_vol(log_returns),
         "Garman-Klass + gap": garman_klass_gap_vol(uso),
         "20-day rolling": rolling_vol(log_returns, 20),
     }).tail(days)
+
+
+def plot_recent_vol_measures(days=20):
+    historic_vol = annualized_vol(returns["Log_Returns"])
+    measures = recent_vol_measures(days)
     print(measures.assign(Historic=historic_vol).round(3))
 
     fig, ax = plt.subplots(figsize=(11, 5.5), layout="constrained")
     fig.suptitle(f"USO annualized vol from log returns: last {days} trading days")
 
-    ax.plot(measures.index, measures["Close-to-close"], color="#2a78d6", linewidth=1.5, marker="o", markersize=5, label="Close-to-close, |log return| × √252")
-    ax.plot(measures.index, measures["Garman-Klass + gap"], color="#eb6834", linewidth=1.5, marker="o", markersize=5, label="Garman-Klass + overnight gap")
-    ax.plot(measures.index, measures["20-day rolling"], color="#1baf7a", linewidth=2, label="20-day rolling vol")
+    ax.plot(measures.index, measures["Close-to-close"], color=MEASURE_COLORS["Close-to-close"], linewidth=1.5, marker="o", markersize=5, label=MEASURE_LABELS["Close-to-close"])
+    ax.plot(measures.index, measures["Garman-Klass + gap"], color=MEASURE_COLORS["Garman-Klass + gap"], linewidth=1.5, marker="o", markersize=5, label=MEASURE_LABELS["Garman-Klass + gap"])
+    ax.plot(measures.index, measures["20-day rolling"], color=MEASURE_COLORS["20-day rolling"], linewidth=2, label=MEASURE_LABELS["20-day rolling"])
     ax.axhline(historic_vol, color=INK, linewidth=1.5, linestyle="--", label=f"Historic vol, entire range ({historic_vol:.1%})")
 
     ax.set_ylabel("Annualized vol")
