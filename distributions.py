@@ -151,12 +151,13 @@ def compare_models(series, models, tail=0.10):
     return pd.DataFrame(rows).T
 
 
-def plot_normal_vs_t(series, models, summary):
+def plot_normal_vs_t(column, models, summary, filename):
     # Same layout as plot_histograms_vs_normal, with the log scale row showing the tails
+    series = returns[column]
+    label, color = SERIES[column]
     fig, axes = plt.subplots(2, 2, figsize=(11, 7.5), sharex=True, sharey="row", layout="constrained")
-    fig.suptitle("USO simple returns: normal vs Student's t fit")
+    fig.suptitle(f"USO {label.lower()}: normal vs Student's t fit")
     x = np.linspace(BINS[0], BINS[-1], 1000)
-    label, color = SERIES["Simple_Returns"]
 
     for col, (name, model) in enumerate(models.items()):
         for ax in axes[:, col]:
@@ -193,7 +194,7 @@ def plot_normal_vs_t(series, models, summary):
     axes[0, 0].set_ylabel("Density")
     axes[1, 0].set_ylabel("Density (log scale)")
 
-    save(fig, "normal_vs_t.png")
+    save(fig, filename)
 
 
 if __name__ == "__main__":
@@ -201,14 +202,16 @@ if __name__ == "__main__":
     print(returns.describe())
     print(returns.agg(["skew", "kurt"]))
 
-    simple_returns = returns["Simple_Returns"]
-    models = fit_models(simple_returns)
-    summary = compare_models(simple_returns, models)
-    print(summary)
-
     style_charts()
     plot_returns_over_time()
     plot_histograms()
     plot_histograms_vs_normal()
-    plot_normal_vs_t(simple_returns, models, summary)
+
+    for column, filename in [("Simple_Returns", "normal_vs_t.png"), ("Log_Returns", "normal_vs_t_log.png")]:
+        models = fit_models(returns[column])
+        summary = compare_models(returns[column], models)
+        print(SERIES[column][0])
+        print(summary)
+        plot_normal_vs_t(column, models, summary, filename)
+
     plt.show()
