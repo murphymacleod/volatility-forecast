@@ -58,8 +58,22 @@ def half_life(result):
 
 
 def conditional_vol(result):
-    # Each date's value only uses returns from before that date
+    # Each date's value only uses returns from before that date, because it's GARCH's forecast for that date
     return result.conditional_volatility * np.sqrt(TRADING_DAYS) / SCALE
+
+
+def end_of_day_vol(result):
+    """
+    GARCH vol using data through each day's close, so it lines up with rolling vol and the daily measures.
+
+    The value made after day t's close is GARCH's forecast for day t+1, so each forecast moves back one day
+    to the day whose data it uses. The last day's value is the first step of the forecast. Scoring forecasts
+    still has to compare each value with the next day's realized vol, not that same day's.
+    """
+    next_day = forecast_vols(result, 1)["single_day"].iloc[0]
+    vol = conditional_vol(result).shift(-1)
+    vol.iloc[-1] = next_day
+    return vol
 
 
 def forecast_vols(result, days=FORECAST_DAYS):
@@ -100,12 +114,12 @@ def format_date_axis(ax):
 
 
 def plot_conditional_vol(result, log_returns):
-    garch_vol = conditional_vol(result)
+    garch_vol = end_of_day_vol(result)
     rolling = rolling_vol(log_returns, 20)
     long_run = long_run_vol(result)
 
     fig, axes = plt.subplots(2, 1, figsize=(11, 7.5), layout="constrained")
-    fig.suptitle("USO GARCH-t vol vs 20-day rolling vol, annualized and fit on all data")
+    fig.suptitle("USO GARCH-t vol vs 20-day rolling vol, annualized and fit on all data\nEach line uses data through that day's close")
 
     for ax, (title, years) in zip(axes, {"Entire range": None, "Last 1 year": 1}.items()):
         ax.plot(period_slice(rolling, years), color=ROLLING_COLOR, linewidth=1, label="20-day rolling vol")
@@ -171,12 +185,12 @@ def plot_recent_vol_with_forecast(results, days=20):
     future_x = np.arange(0, days + 1)
 
     fig, ax = plt.subplots(figsize=(12, 6.5), layout="constrained")
-    fig.suptitle(f"USO annualized vol: the last {days} trading days, and GARCH forecasts for the next {days}")
+    fig.suptitle(f"USO annualized vol: the last {days} trading days, and GARCH forecasts for the next {days}\nEach line uses data through that day's close")
     ax.axvspan(0, days, color="#f0efec", zorder=0)
     ax.axvline(0, color="#c3c2b7", linewidth=1)
     ax.text(days - 0.5, 0.97, "Forecast", transform=ax.get_xaxis_transform(), ha="right", va="top", color="#52514e")
     # GARCH-normal forecasts run higher, so its label goes above the line end and GARCH-t's goes below
-    label_offsets = {"GARCH-normal": 10, "GARCH-t": -10}
+    label_offsets = {"GARCH-normal": 15, "GARCH-t": -15}
 
     for column in ["Close-to-close", "Garman-Klass + gap"]:
         ax.plot(past_x, measures[column], color=MEASURE_COLORS[column], linewidth=1.5, marker="o", markersize=5, label=MEASURE_LABELS[column])
@@ -186,12 +200,12 @@ def plot_recent_vol_with_forecast(results, days=20):
 
     for name, result in results.items():
         color = RECENT_GARCH_COLORS[name]
-        past = conditional_vol(result).tail(days)
+        past = end_of_day_vol(result).reindex(measures.index)
         forecast = forecast_vols(result, days)
         window_vol = forecast["whole_window"][days]
 
         ax.plot(past_x, past, color=color, linewidth=2, label=f"{name} vol")
-        # The forecast starts from today's GARCH value, so the past and future lines join up
+        # Today's value is already the forecast for day +1, so the line stays flat to +1 before it decays
         ax.plot(future_x, np.r_[past.iloc[-1], forecast["single_day"]], color=color, linewidth=2, linestyle="--", label=f"{name} daily forecast (whole 20-day window: {window_vol:.1%})")
         ax.annotate(
             f"{name}\n20-day: {window_vol:.1%}",
@@ -201,6 +215,9 @@ def plot_recent_vol_with_forecast(results, days=20):
             va="center",
             color=INK,
             fontsize=9,
+            # A background keeps reference lines from running through the label
+            bbox={"facecolor": "#fcfcfb", "edgecolor": "none", "pad": 1},
+            zorder=5,
         )
 
     ax.axhline(historic_vol, color=INK, linewidth=1.5, linestyle="--", label=f"Historic vol, entire range ({historic_vol:.1%})")
