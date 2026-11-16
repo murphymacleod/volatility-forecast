@@ -1,4 +1,4 @@
-from pathlib import Path
+"""USO return distributions, and normal vs Student's t fits. Charts go to plots/distributions/."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,51 +6,18 @@ import pandas as pd
 from matplotlib.ticker import PercentFormatter
 from scipy.stats import norm, t as student_t
 
-DATA_PATH = Path(__file__).parent / "etf_data" / "USO_daily_prices.csv"
-PLOTS_DIR = Path(__file__).parent / "plots"
+from volforecast.data import load_prices
+from volforecast.plotting import INK, RETURN_SERIES as SERIES, save, style_charts
 
-# Column name -> (label, color), so each return type keeps its color across every chart
-SERIES = {
-    "Log_Returns": ("Log returns", "#2a78d6"),
-    "Simple_Returns": ("Simple returns", "#eb6834"),
-}
-INK = "#0b0b0b"
+PLOT_FOLDER = "distributions"
 
 # Same 0.5% bins for both return types, so their histograms are directly comparable
 BINS = np.arange(-0.30, 0.18, 0.005)
 
-uso = pd.read_csv(DATA_PATH, parse_dates=["Date"], index_col="Date").sort_index()
-
-# Uses the split-adjusted close, since Raw_Closing_Price has a false jump at the 2020 reverse split
-uso["Simple_Returns"] = uso["Closing_Price"].pct_change()
+uso = load_prices("USO")
 
 # The first row has no prior close, so its return is NaN
 returns = uso[["Log_Returns", "Simple_Returns"]].dropna()
-
-
-def style_charts():
-    plt.rcParams.update({
-        "figure.facecolor": "#fcfcfb",
-        "axes.facecolor": "#fcfcfb",
-        "axes.edgecolor": "#c3c2b7",
-        "axes.labelcolor": "#52514e",
-        "axes.titlecolor": INK,
-        "axes.titlesize": 11,
-        "axes.spines.top": False,
-        "axes.spines.right": False,
-        "axes.grid": True,
-        "axes.axisbelow": True,
-        "grid.color": "#e1e0d9",
-        "grid.linewidth": 0.6,
-        "xtick.color": "#52514e",
-        "ytick.color": "#52514e",
-        "font.family": ["Segoe UI", "sans-serif"],
-    })
-
-
-def save(fig, name):
-    PLOTS_DIR.mkdir(exist_ok=True)
-    fig.savefig(PLOTS_DIR / name, dpi=150)
 
 
 def plot_returns_over_time():
@@ -76,7 +43,7 @@ def plot_returns_over_time():
             fontsize=9,
         )
 
-    save(fig, "returns_over_time.png")
+    save(fig, "returns_over_time.png", PLOT_FOLDER)
 
 
 def plot_histograms():
@@ -90,7 +57,7 @@ def plot_histograms():
         ax.xaxis.set_major_formatter(PercentFormatter(xmax=1))
     axes[0].set_ylabel("Number of days")
 
-    save(fig, "returns_histograms.png")
+    save(fig, "returns_histograms.png", PLOT_FOLDER)
 
 
 def plot_histograms_vs_normal():
@@ -125,7 +92,7 @@ def plot_histograms_vs_normal():
     axes[0, 0].set_ylabel("Density")
     axes[1, 0].set_ylabel("Density (log scale)")
 
-    save(fig, "returns_vs_normal.png")
+    save(fig, "returns_vs_normal.png", PLOT_FOLDER)
 
 
 def fit_models(series):
@@ -136,14 +103,14 @@ def fit_models(series):
 
 
 def compare_models(series, models, tail=0.10):
-    rows = {"Actual": {"Excess kurtosis": series.kurt(), f"Days beyond ±{tail:.0%}": (series.abs() > tail).sum()}}
+    rows = {"Actual": {"Excess kurtosis": series.kurt(), f"Days beyond Â±{tail:.0%}": (series.abs() > tail).sum()}}
 
     for name, model in models.items():
         log_likelihood = model.logpdf(series).sum()
         rows[name] = {
             # A t distribution's kurtosis is infinite when its degrees of freedom are 4 or less
             "Excess kurtosis": float(model.stats(moments="k")),
-            f"Days beyond ±{tail:.0%}": len(series) * (model.cdf(-tail) + model.sf(tail)),
+            f"Days beyond Â±{tail:.0%}": len(series) * (model.cdf(-tail) + model.sf(tail)),
             "Log-likelihood": log_likelihood,
             "AIC": 2 * len(model.args) - 2 * log_likelihood,
         }
@@ -180,8 +147,8 @@ def plot_normal_vs_t(column, models, summary, filename):
 
         axes[1, col].text(
             0.03, 0.95,
-            f"Days beyond ±10%\nData: {summary.loc['Actual', 'Days beyond ±10%']:.0f}\n"
-            f"Model: {summary.loc[name, 'Days beyond ±10%']:.1f}",
+            f"Days beyond Â±10%\nData: {summary.loc['Actual', 'Days beyond Â±10%']:.0f}\n"
+            f"Model: {summary.loc[name, 'Days beyond Â±10%']:.1f}",
             transform=axes[1, col].transAxes,
             va="top",
             color=INK,
@@ -194,7 +161,7 @@ def plot_normal_vs_t(column, models, summary, filename):
     axes[0, 0].set_ylabel("Density")
     axes[1, 0].set_ylabel("Density (log scale)")
 
-    save(fig, filename)
+    save(fig, filename, PLOT_FOLDER)
 
 
 if __name__ == "__main__":

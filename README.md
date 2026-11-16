@@ -1,5 +1,28 @@
 # Volatility-Forecast
 
+## Project layout
+
+| Folder | What goes there |
+|---|---|
+| `volforecast/` | Reusable code, as an installable package: data loading, vol measures, chart style, GARCH helpers, and the backtester |
+| `analysis/` | Exploratory scripts that make charts. Each one saves to its own folder in `plots/` |
+| `backtests/` | Backtest run scripts. Each one lists the models to compare and its settings |
+| `results/<run>/` | Output of a backtest run: `leaderboard.md`, detailed tables, charts and GARCH parameter estimates |
+| `plots/<topic>/` | Charts from `analysis/`, one folder per script |
+| `tests/` | Checks for the backtester, including that no forecast uses future data. Run with `pytest` |
+| `etf_data/`, `options_data/`, `data/options/` | Price and option data. These stay put because the scheduled download writes to them |
+
+Setup, from the project folder:
+
+```powershell
+python -m venv venv
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+.\venv\Scripts\python.exe -m pytest
+.\venv\Scripts\python.exe backtests\run_backtest.py
+```
+
+New reusable code goes in `volforecast/`, and scripts import it with `from volforecast... import ...`.
+
 ## Project Objective
 The goal of this project is to develop a tool that forecasts future volatility for commodity ETFs to improve our risk assessment, options valuation, and trading decisions.
 Rather than predicting the exact path of volatility, the objective is to forecast a probability distribution of future realized volatility over a specified time horizon.

@@ -1,2 +1,8 @@
 logs/
 __pycache__/
+
+# Created by pip install -e .
+*.egg-info/
+
+# Backtest forecasts are large and can be regenerated from the run script
+results/*/forecasts.csv.gz

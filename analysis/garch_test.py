@@ -1,34 +1,37 @@
 """
-First test of GARCH(1,1) on USO's daily log returns.
+First test of GARCH(1,1) on USO's daily log returns. Charts go to plots/garch/.
 
 This fits on all of the data, so it shows how the model behaves but is not a
 backtest. Its parameters have seen every date that its volatility is compared to.
+For out-of-sample results, see backtests/run_backtest.py.
 """
 
-import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from arch import arch_model
 from matplotlib.ticker import PercentFormatter
 from scipy.stats import t as student_t
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
-from distributions import INK, returns, save, style_charts
-from historic_vol import (
-    MEASURE_COLORS,
-    MEASURE_LABELS,
-    TRADING_DAYS,
-    annualized_vol,
-    period_slice,
-    recent_vol_measures,
-    rolling_vol,
+from volforecast.data import load_prices
+from volforecast.garch import (
+    conditional_vol,
+    end_of_day_vol,
+    fit_garch,
+    forecast_vols as _forecast_vols,
+    half_life,
+    long_run_vol,
+    persistence,
 )
+from volforecast.measures import annualized_vol, period_slice, recent_vol_measures, rolling_vol
+from volforecast.plotting import INK, MEASURE_COLORS, MEASURE_LABELS, format_date_axis, save, style_charts
 
-# Returns are in percent while fitting, which helps the optimizer converge
-SCALE = 100
+PLOT_FOLDER = "garch"
 FORECAST_DAYS = 60
 TARGET_HORIZONS = [1, 10, 20]
+
+uso = load_prices("USO")
+returns = uso[["Log_Returns", "Simple_Returns"]].dropna()
 
 GARCH_T_COLOR = "#2a78d6"
 GARCH_NORMAL_COLOR = "#eb6834"
@@ -39,52 +42,8 @@ RAW_RETURNS_COLOR = "#898781"
 RECENT_GARCH_COLORS = {"GARCH-t": "#eda100", "GARCH-normal": "#e87ba4"}
 
 
-def fit_garch(log_returns, dist):
-    model = arch_model(SCALE * log_returns, mean="Constant", vol="GARCH", p=1, q=1, dist=dist)
-    return model.fit(disp="off")
-
-
-def persistence(result):
-    return result.params["alpha[1]"] + result.params["beta[1]"]
-
-
-def long_run_vol(result):
-    long_run_variance = result.params["omega"] / (1 - persistence(result))
-    return np.sqrt(long_run_variance * TRADING_DAYS) / SCALE
-
-
-def half_life(result):
-    return np.log(0.5) / np.log(persistence(result))
-
-
-def conditional_vol(result):
-    # Each date's value only uses returns from before that date, because it's GARCH's forecast for that date
-    return result.conditional_volatility * np.sqrt(TRADING_DAYS) / SCALE
-
-
-def end_of_day_vol(result):
-    """
-    GARCH vol using data through each day's close, so it lines up with rolling vol and the daily measures.
-
-    The value made after day t's close is GARCH's forecast for day t+1, so each forecast moves back one day
-    to the day whose data it uses. The last day's value is the first step of the forecast. Scoring forecasts
-    still has to compare each value with the next day's realized vol, not that same day's.
-    """
-    next_day = forecast_vols(result, 1)["single_day"].iloc[0]
-    vol = conditional_vol(result).shift(-1)
-    vol.iloc[-1] = next_day
-    return vol
-
-
 def forecast_vols(result, days=FORECAST_DAYS):
-    daily_variance = result.forecast(horizon=days).variance.iloc[-1].to_numpy() / SCALE**2
-    horizons = np.arange(1, days + 1)
-
-    # A window's vol averages the daily variances first, because variance is what adds up across days
-    return pd.DataFrame({
-        "single_day": np.sqrt(daily_variance * TRADING_DAYS),
-        "whole_window": np.sqrt(np.cumsum(daily_variance) / horizons * TRADING_DAYS),
-    }, index=horizons)
+    return _forecast_vols(result, days)
 
 
 def summarize_models(results):
@@ -105,12 +64,6 @@ def summarize_models(results):
             **{f"{days}-day forecast": window_vol[days] for days in TARGET_HORIZONS},
         }
     return pd.DataFrame(rows)
-
-
-def format_date_axis(ax):
-    locator = mdates.AutoDateLocator()
-    ax.xaxis.set_major_locator(locator)
-    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
 
 
 def plot_conditional_vol(result, log_returns):
@@ -134,7 +87,7 @@ def plot_conditional_vol(result, log_returns):
 
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="outside lower center", ncols=3, frameon=False)
-    save(fig, "garch_conditional_vol.png")
+    save(fig, "garch_conditional_vol.png", PLOT_FOLDER)
 
 
 def plot_forecast(results, log_returns):
@@ -170,12 +123,12 @@ def plot_forecast(results, log_returns):
     ax.set_ylim(0.30, 0.70)
     ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
     fig.legend(loc="outside lower center", ncols=3, frameon=False)
-    save(fig, "garch_forecast.png")
+    save(fig, "garch_forecast.png", PLOT_FOLDER)
 
 
 def plot_recent_vol_with_forecast(results, days=20):
     # Same view as historic_vol.py's recent vol chart, extended into the future with GARCH's forecasts
-    measures = recent_vol_measures(days)
+    measures = recent_vol_measures(uso, days)
     historic_vol = annualized_vol(returns["Log_Returns"])
     latest_rolling = measures["20-day rolling"].iloc[-1]
     today = measures.index[-1]
@@ -232,7 +185,7 @@ def plot_recent_vol_with_forecast(results, days=20):
     ax.set_ylim(bottom=0)
     ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
     fig.legend(loc="outside lower center", ncols=2, frameon=False)
-    save(fig, "garch_recent_vol_forecast.png")
+    save(fig, "garch_recent_vol_forecast.png", PLOT_FOLDER)
 
 
 def squared_autocorrelation(series, lags):
@@ -289,7 +242,7 @@ def plot_diagnostics(result, log_returns):
     ax.set_ylabel("Density (log scale)")
     ax.legend(loc="upper right", frameon=False)
 
-    save(fig, "garch_diagnostics.png")
+    save(fig, "garch_diagnostics.png", PLOT_FOLDER)
 
 
 def print_diagnostics(result, log_returns):

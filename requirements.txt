@@ -1,12 +1,16 @@
-# Everything needed for the analysis and GARCH models. Tested on Python 3.14 on Windows.
+# Everything needed for the analysis, GARCH models and backtests. Tested on Python 3.14 on Windows.
 # Install with: python -m pip install -r requirements.txt
 numpy==2.5.4
 pandas==3.1.1
 scipy==1.18.1
 matplotlib==3.11.2
 arch==8.0.0
+pytest==9.2.0
 
 # Keeps pip from choosing a pre-release version, which arch's dependencies allow
 wrapt<2.6
+
+# Installs this project's volforecast package, so scripts in any folder can import it
+-e .
 
 # Re-downloading data also needs requests and coins_data. See TEAM_UPDATE.md.

@@ -1,14 +1,24 @@
-import matplotlib.dates as mdates
+"""Rolling and historic vol over several date ranges, and recent daily vol measures. Charts go to plots/historic_vol/."""
+
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
 from matplotlib.ticker import PercentFormatter
 
-from distributions import INK, SERIES, returns, save, style_charts, uso
+from volforecast.data import load_prices
+from volforecast.measures import annualized_vol, period_slice, recent_vol_measures, rolling_vol
+from volforecast.plotting import (
+    INK,
+    MEASURE_COLORS,
+    MEASURE_LABELS,
+    RETURN_SERIES as SERIES,
+    format_date_axis,
+    save,
+    style_charts,
+)
+
+PLOT_FOLDER = "historic_vol"
 
 # Return column -> chart filename, with one chart per return type
 CHARTS = {"Log_Returns": "rolling_vol_log.png", "Simple_Returns": "rolling_vol_simple.png"}
-TRADING_DAYS = 252
 
 # Rolling window in trading days -> color, so each window keeps its color across every panel
 WINDOWS = {20: "#2a78d6", 15: "#eb6834", 10: "#1baf7a"}
@@ -16,19 +26,8 @@ WINDOWS = {20: "#2a78d6", 15: "#eb6834", 10: "#1baf7a"}
 # Panel title -> years of history, where None means the entire data range
 PERIODS = {"Entire range": None, "Last 5 years": 5, "Last 3 years": 3, "Last 1 year": 1}
 
-
-def annualized_vol(daily_returns):
-    return daily_returns.std() * np.sqrt(TRADING_DAYS)
-
-
-def rolling_vol(daily_returns, window):
-    return daily_returns.rolling(window).std() * np.sqrt(TRADING_DAYS)
-
-
-def period_slice(data, years):
-    if years is None:
-        return data
-    return data[data.index > data.index[-1] - pd.DateOffset(years=years)]
+uso = load_prices("USO")
+returns = uso[["Log_Returns", "Simple_Returns"]].dropna()
 
 
 def plot_rolling_vol(column, filename):
@@ -54,9 +53,7 @@ def plot_rolling_vol(column, filename):
         ax.set_ylabel("Annualized vol")
         ax.set_ylim(bottom=0)
         ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
-        locator = mdates.AutoDateLocator()
-        ax.xaxis.set_major_locator(locator)
-        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+        format_date_axis(ax)
         ax.margins(x=0.01)
 
     # Legend entries run from longest to shortest window, then the historic line
@@ -70,64 +67,29 @@ def plot_rolling_vol(column, filename):
         frameon=False,
     )
 
-    save(fig, filename)
-
-
-# Daily vol measure -> color and legend label, shared with the GARCH chart in garch_test.py
-MEASURE_COLORS = {"Close-to-close": "#2a78d6", "Garman-Klass + gap": "#eb6834", "20-day rolling": "#1baf7a"}
-MEASURE_LABELS = {
-    "Close-to-close": "Close-to-close, |log return| × √252",
-    "Garman-Klass + gap": "Garman-Klass + overnight gap",
-    "20-day rolling": "20-day rolling vol",
-}
-
-
-def close_to_close_vol(log_returns):
-    # A single day's vol is just the size of its return, annualized
-    return log_returns.abs() * np.sqrt(TRADING_DAYS)
-
-
-def garman_klass_gap_vol(prices):
-    # Garman-Klass only sees the open to close session, so the overnight gap is added back in
-    high_low = np.log(prices["High_Price"] / prices["Low_Price"])
-    open_close = np.log(prices["Closing_Price"] / prices["Open_Price"])
-    overnight_gap = np.log(prices["Open_Price"] / prices["Closing_Price"].shift())
-    daily_variance = 0.5 * high_low**2 - (2 * np.log(2) - 1) * open_close**2 + overnight_gap**2
-    return np.sqrt(daily_variance * TRADING_DAYS)
-
-
-def recent_vol_measures(days=20):
-    # Everything is calculated on the full history first, then cut down to the days shown
-    log_returns = returns["Log_Returns"]
-    return pd.DataFrame({
-        "Close-to-close": close_to_close_vol(log_returns),
-        "Garman-Klass + gap": garman_klass_gap_vol(uso),
-        "20-day rolling": rolling_vol(log_returns, 20),
-    }).tail(days)
+    save(fig, filename, PLOT_FOLDER)
 
 
 def plot_recent_vol_measures(days=20):
     historic_vol = annualized_vol(returns["Log_Returns"])
-    measures = recent_vol_measures(days)
+    measures = recent_vol_measures(uso, days)
     print(measures.assign(Historic=historic_vol).round(3))
 
     fig, ax = plt.subplots(figsize=(11, 5.5), layout="constrained")
     fig.suptitle(f"USO annualized vol from log returns: last {days} trading days")
 
-    ax.plot(measures.index, measures["Close-to-close"], color=MEASURE_COLORS["Close-to-close"], linewidth=1.5, marker="o", markersize=5, label=MEASURE_LABELS["Close-to-close"])
-    ax.plot(measures.index, measures["Garman-Klass + gap"], color=MEASURE_COLORS["Garman-Klass + gap"], linewidth=1.5, marker="o", markersize=5, label=MEASURE_LABELS["Garman-Klass + gap"])
+    for column in ["Close-to-close", "Garman-Klass + gap"]:
+        ax.plot(measures.index, measures[column], color=MEASURE_COLORS[column], linewidth=1.5, marker="o", markersize=5, label=MEASURE_LABELS[column])
     ax.plot(measures.index, measures["20-day rolling"], color=MEASURE_COLORS["20-day rolling"], linewidth=2, label=MEASURE_LABELS["20-day rolling"])
     ax.axhline(historic_vol, color=INK, linewidth=1.5, linestyle="--", label=f"Historic vol, entire range ({historic_vol:.1%})")
 
     ax.set_ylabel("Annualized vol")
     ax.set_ylim(bottom=0)
     ax.yaxis.set_major_formatter(PercentFormatter(xmax=1, decimals=0))
-    locator = mdates.AutoDateLocator()
-    ax.xaxis.set_major_locator(locator)
-    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+    format_date_axis(ax)
     fig.legend(loc="outside lower center", ncols=2, frameon=False)
 
-    save(fig, "recent_vol_measures.png")
+    save(fig, "recent_vol_measures.png", PLOT_FOLDER)
 
 
 if __name__ == "__main__":
